@@ -1,0 +1,36 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# VSCode or JetBrains settings
+.vscode/
+
+# MacOS
+.DS_Store
+
+# Logs and temp
+*.log
+/tmp/
+.env
+*.env
+
+# GCP credentials
+*.json
+/.google/credentials/
+~/.dbt/
+
+# other files
+flows_pavlokurochka.zip
+weather_data.parquet
+weather_data.json
+activate-environment-guide.txt
+company.team.preparers.yml
+code/terraform/terraform.tfstate.backup
+code/terraform/terraform.tfstate
+code/terraform/.terraform.lock.hcl
+code/terraform/.terraform/
+
+# my credentials
+code/dbt/dbt_keys
+code/kestra/keys
+code/terraform/keys

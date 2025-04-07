@@ -1,0 +1,85 @@
+id: 01_openmeteo_api_ingest_datelog
+namespace: zoomcamp_capstone
+
+variables:
+  date: "{{ execution.startDate | date('yyyyMMdd') }}"
+  file: "weather_data-{{ vars.date }}.parquet"
+  gcs_file: "gs://{{ kv('GCP_BUCKET_NAME') }}/{{ vars.file }}"
+  table: "{{ kv('GCP_DATASET') }}.weather_data"
+  data: "{{ outputs.convert_to_parquet.outputFiles[vars.file] }}"
+
+tasks:
+  - id: set_label
+    type: io.kestra.plugin.core.execution.Labels
+    labels:
+      file: "{{ vars.file }}"
+      data_type: "air_quality"
+
+  - id: fetch_data
+    type: io.kestra.plugin.core.http.Request
+    uri: "https://api.open-meteo.com/v1/forecast?latitude=50.88&longitude=4.70&hourly=temperature_2m,relative_humidity_2m,precipitation,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,wind_direction_10m&forecast_days=1&timezone=Europe%2FBerlin"
+    method: GET
+
+  - id: save_json
+    type: io.kestra.plugin.scripts.python.Script
+    inputFiles:
+      data.json: "{{ outputs.fetch_data.body }}"
+    script: |
+      import json
+
+      # Load the JSON string safely
+      data = json.loads("""{{ outputs.fetch_data.body }}""")
+
+      # Save as JSON file with UTF-8 encoding
+      with open("weather_data.json", "w", encoding="utf-8") as file:
+          json.dump(data, file, ensure_ascii=False, indent=2)
+
+    outputFiles:
+      - "weather_data.json"
+
+  - id: convert_to_parquet
+    type: io.kestra.plugin.scripts.python.Script
+    warningOnStdErr: false
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+    containerImage: ghcr.io/kestra-io/pydata:latest
+    inputFiles:
+      weather_data.json: "{{ outputs.save_json.outputFiles['weather_data.json'] }}"
+    script: |
+      import json
+      import pandas as pd
+
+      # Load JSON
+      with open("weather_data.json", "r") as file:
+          data = json.load(file)
+
+      # Extract 'hourly' data
+      df = pd.DataFrame(data["hourly"])
+
+      # Convert time column to datetime
+      df["time"] = pd.to_datetime(df["time"])
+
+      # Save to Parquet
+      df.to_parquet("{{ vars.file }}", index=False)
+
+    outputFiles:
+      - "{{ vars.file }}"
+
+  - id: upload_to_gcs
+    type: io.kestra.plugin.gcp.gcs.Upload
+    from: "{{ vars.data }}"
+    to: "{{ vars.gcs_file }}"
+    serviceAccount: "{{ kv('GCP_CREDS') }}"
+
+  - id: purge_files
+    type: io.kestra.plugin.core.storage.PurgeCurrentExecutionFiles
+    description: Purge temporary files after processing.
+    disabled: false
+
+pluginDefaults:
+  - type: io.kestra.plugin.gcp
+    values:
+      serviceAccount: "{{ kv('GCP_CREDS') }}"
+      projectId: "{{ kv('GCP_PROJECT_ID') }}"
+      location: "{{ kv('GCP_LOCATION') }}"
+      bucket: "{{ kv('GCP_BUCKET_NAME') }}"

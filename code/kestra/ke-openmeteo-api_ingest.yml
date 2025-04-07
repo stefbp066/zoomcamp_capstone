@@ -1,0 +1,144 @@
+id: 01_openmeteo_api_ingest
+namespace: zoomcamp_capstone
+
+variables:
+  file: "weather_data.parquet"
+  gcs_file: "gs://{{ kv('GCP_BUCKET_NAME') }}/weather_data.parquet"
+  table: "{{ kv('GCP_DATASET') }}.weather_data"
+  data: "{{ outputs.convert_to_parquet.outputFiles['weather_data.parquet'] }}"
+
+tasks:
+  - id: set_label
+    type: io.kestra.plugin.core.execution.Labels
+    labels:
+      file: "{{ vars.file }}"
+      data_type: "air_quality"
+
+  - id: fetch_data
+    type: io.kestra.plugin.core.http.Request
+    uri: "https://api.open-meteo.com/v1/forecast?latitude=50.88&longitude=4.70&hourly=temperature_2m,relative_humidity_2m,precipitation,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,wind_direction_10m&forecast_days=1&timezone=Europe%2FBerlin"
+    method: GET
+
+  - id: save_json
+    type: io.kestra.plugin.scripts.python.Script
+    inputFiles:
+      data.json: "{{ outputs.fetch_data.body }}"
+    script: |
+      import json
+
+      # Load the JSON string safely
+      data = json.loads("""{{ outputs.fetch_data.body }}""")
+
+      # Save as JSON file with UTF-8 encoding
+      with open("weather_data.json", "w", encoding="utf-8") as file:
+          json.dump(data, file, ensure_ascii=False, indent=2)
+
+    outputFiles:
+      - "weather_data.json"
+
+  - id: convert_to_parquet
+    type: io.kestra.plugin.scripts.python.Script
+    warningOnStdErr: false
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+    containerImage: ghcr.io/kestra-io/pydata:latest
+    inputFiles:
+      weather_data.json: "{{ outputs.save_json.outputFiles['weather_data.json'] }}"
+    script: |
+      import json
+      import pandas as pd
+
+      # Load JSON
+      with open("weather_data.json", "r") as file:
+          data = json.load(file)
+
+      # Extract 'hourly' data
+      df = pd.DataFrame(data["hourly"])
+
+      # Convert time column to datetime. encountered issue with BQ wanting microseconds so divide by 1000.
+      df["time"] = pd.to_datetime(df["time"]).astype("int64") // 1000 
+
+      # Save to Parquet
+      df.to_parquet("{{ vars.file }}", index=False)
+
+    outputFiles:
+      - "{{ vars.file }}"
+
+  - id: upload_to_gcs
+    type: io.kestra.plugin.gcp.gcs.Upload
+    from: "{{ outputs.convert_to_parquet.outputFiles['weather_data.parquet'] }}"
+    to: "{{ vars.gcs_file }}"
+    serviceAccount: "{{ kv('GCP_CREDS') }}"
+  
+  - id: create_weather_table
+    type: io.kestra.plugin.gcp.bigquery.Query
+    sql: |
+      CREATE TABLE IF NOT EXISTS `{{ kv('GCP_PROJECT_ID') }}.{{ kv('GCP_DATASET') }}.weather_data`
+      (
+          time TIMESTAMP OPTIONS (description = 'The timestamp when the weather data prediction was recorded.'),
+          temperature_2m FLOAT64 OPTIONS (description = 'Temperature at 2m height (Celsius).'),
+          relative_humidity_2m INT64 OPTIONS (description = 'Relative humidity at 2m height (%).'),
+          precipitation FLOAT64 OPTIONS (description = 'Precipitation (mm).'),
+          cloud_cover INT64 OPTIONS (description = 'Total cloud cover (%).'),
+          cloud_cover_low INT64 OPTIONS (description = 'Low-level cloud cover (%).'),
+          cloud_cover_mid INT64 OPTIONS (description = 'Mid-level cloud cover (%).'),
+          cloud_cover_high INT64 OPTIONS (description = 'High-level cloud cover (%).'),
+          wind_speed_10m FLOAT64 OPTIONS (description = 'Wind speed at 10m height (m/s).'),
+          wind_direction_10m INT64 OPTIONS (description = 'Wind direction at 10m height (degrees).')
+      )
+      PARTITION BY DATE(time);
+  
+  - id: load_weather_data
+    type: io.kestra.plugin.gcp.bigquery.Query
+    sql: |
+      CREATE OR REPLACE EXTERNAL TABLE `{{ kv('GCP_PROJECT_ID') }}.{{ render(vars.table) }}_ext`
+      (
+        time TIMESTAMP OPTIONS (description = 'The timestamp when the weather data prediction was recorded.'),
+        temperature_2m FLOAT64 OPTIONS (description = 'Temperature at 2m height (Celsius).'),
+        relative_humidity_2m INT64 OPTIONS (description = 'Relative humidity at 2m height (%).'),
+        precipitation FLOAT64 OPTIONS (description = 'Precipitation (mm).'),
+        cloud_cover INT64 OPTIONS (description = 'Total cloud cover (%).'),
+        cloud_cover_low INT64 OPTIONS (description = 'Low-level cloud cover (%).'),
+        cloud_cover_mid INT64 OPTIONS (description = 'Mid-level cloud cover (%).'),
+        cloud_cover_high INT64 OPTIONS (description = 'High-level cloud cover (%).'),
+        wind_speed_10m FLOAT64 OPTIONS (description = 'Wind speed at 10m height (m/s).'),
+        wind_direction_10m INT64 OPTIONS (description = 'Wind direction at 10m height (degrees).')
+      )
+      OPTIONS (
+          format = 'PARQUET',
+          uris = ['{{ render(vars.gcs_file) }}']
+      );
+
+  - id: merge_weather_data
+    type: io.kestra.plugin.gcp.bigquery.Query
+    sql: |
+      MERGE INTO `{{ kv('GCP_PROJECT_ID') }}.{{ kv('GCP_DATASET') }}.weather_data` T
+      USING `{{ kv('GCP_PROJECT_ID') }}.{{ render(vars.table) }}_ext` S
+      ON T.time = S.time
+      WHEN MATCHED THEN
+        UPDATE SET
+          temperature_2m = S.temperature_2m,
+          relative_humidity_2m = S.relative_humidity_2m,
+          precipitation = S.precipitation,
+          cloud_cover = S.cloud_cover,
+          cloud_cover_low = S.cloud_cover_low,
+          cloud_cover_mid = S.cloud_cover_mid,
+          cloud_cover_high = S.cloud_cover_high,
+          wind_speed_10m = S.wind_speed_10m,
+          wind_direction_10m = S.wind_direction_10m
+      WHEN NOT MATCHED THEN
+        INSERT (time, temperature_2m, relative_humidity_2m, precipitation, cloud_cover, cloud_cover_low, cloud_cover_mid, cloud_cover_high, wind_speed_10m, wind_direction_10m)
+        VALUES (S.time, S.temperature_2m, S.relative_humidity_2m, S.precipitation, S.cloud_cover, S.cloud_cover_low, S.cloud_cover_mid, S.cloud_cover_high, S.wind_speed_10m, S.wind_direction_10m);
+
+  - id: purge_files
+    type: io.kestra.plugin.core.storage.PurgeCurrentExecutionFiles
+    description: Purge temporary files after processing.
+    disabled: false
+
+pluginDefaults:
+  - type: io.kestra.plugin.gcp
+    values:
+      serviceAccount: "{{ kv('GCP_CREDS') }}"
+      projectId: "{{ kv('GCP_PROJECT_ID') }}"
+      location: "{{ kv('GCP_LOCATION') }}"
+      bucket: "{{ kv('GCP_BUCKET_NAME') }}"
