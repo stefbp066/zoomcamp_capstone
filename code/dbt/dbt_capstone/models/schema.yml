@@ -1,0 +1,63 @@
+
+version: 2
+
+models:
+  - name: transformed_weather
+    description: >
+      Transformed weather data from the Open-Meteo free API (10000 free calls per day). Added transforms are related to cloud cover binning, general cardinal direction of the wind.
+    columns:
+      - name: time
+        description: "Unique identifier for each record in the fact table (from source data)."
+        tests:
+          - unique
+          - not_null
+
+      - name: temperature_2m
+        description: "Ground temperature in Celsius (C)."
+        tests:
+          - not_null
+
+      - name: relative_humidity_2m
+        description: "Percentage of relative humidity at 2m height."
+        tests:
+          - not_null
+
+      - name: precipitation
+        description: "The amount of rain (mm)."
+        tests:
+          - not_null
+
+      - name: cloud_cover
+        description: "Overall cloud cover in percentage."
+        tests:
+          - not_null
+
+      - name: cloud_cover_low
+        description: "The percentage of cloud cover at lower sky areas."
+        tests:
+          - not_null
+
+      - name: cloud_cover_mid
+        description: "The percentage of cloud cover at lower sky areas."
+        tests:
+          - not_null
+
+      - name: cloud_cover_high
+        description: "The percentage of cloud cover at lower sky areas."
+        tests:
+          - not_null
+
+      - name: wind_speed_10m
+        description: "The percentage of cloud cover at lower sky areas."
+        tests:
+          - not_null
+
+      - name: wind_direction_10m
+        description: "The percentage of cloud cover at lower sky areas."
+        tests:
+          - not_null
+
+      - name: wind_cardinal_direction
+        description: "The percentage of cloud cover at lower sky areas."
+        tests:
+          - not_null

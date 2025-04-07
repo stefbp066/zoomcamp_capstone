@@ -1,3 +1,5 @@
+{{ config(materialized='table') }}
+
 with transformed_weather as (
     select 
         time,
