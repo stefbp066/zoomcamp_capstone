@@ -66,7 +66,7 @@ triggers:
 - id: upstream_dependancy
   type: io.kestra.plugin.core.trigger.Flow
   preconditions:
-    id: fetch_weather_data
+    id: 01_openmeteo_api_ingest
     flows:
       - namespace: kestra.sandbox
         flowId: flow_a
