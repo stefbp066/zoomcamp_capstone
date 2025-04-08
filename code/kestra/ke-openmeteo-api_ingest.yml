@@ -135,6 +135,11 @@ tasks:
     description: Purge temporary files after processing.
     disabled: false
 
+triggers:
+  - id: schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 0 * * *"  # every day at midnight
+
 pluginDefaults:
   - type: io.kestra.plugin.gcp
     values:
