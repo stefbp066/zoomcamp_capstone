@@ -66,8 +66,8 @@ triggers:
 - id: upstream_dependancy
   type: io.kestra.plugin.core.trigger.Flow
   preconditions:
-    id: 01_openmeteo_api_ingest
+    id: api_ingestion_successful
     flows:
-      - namespace: kestra.sandbox
-        flowId: flow_a
+      - namespace: zoomcamp_capstone
+        flowId: 01_openmeteo_api_ingest
         states: [SUCCESS]
