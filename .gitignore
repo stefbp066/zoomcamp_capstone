@@ -20,9 +20,6 @@ __pycache__/
 ~/.dbt/
 
 # other files
-flows_pavlokurochka.zip
-weather_data.parquet
-weather_data.json
 activate-environment-guide.txt
 company.team.preparers.yml
 code/terraform/terraform.tfstate.backup
@@ -34,3 +31,6 @@ code/terraform/.terraform/
 code/dbt/dbt_keys
 code/kestra/keys
 code/terraform/keys
+
+# docker container
+docker_container/
