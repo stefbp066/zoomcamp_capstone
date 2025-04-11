@@ -8,7 +8,7 @@ This repository contains the end-to-end implementation of a data pipeline built 
 
 The final dashboard provides insights derived from the processed data.
 
-![Dashboard Screenshot](main/image/dashboard-screenshot.png)
+![Dashboard Screenshot](image/dashboard-screenshot.png)
 
 [🔗 View the live dashboard here](https://lookerstudio.google.com/s/rDS0l2RY0Wo)
 
