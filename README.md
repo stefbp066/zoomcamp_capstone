@@ -28,7 +28,7 @@ The data pipeline architecture includes:
 - **Transformation**: Performed with `dbt` (BigQuery) as another Kestra flow [ke_gcp_dbt.yml](https://github.com/stefbp066/zoomcamp_capstone/blob/main/code/kestra/ke_gcp_dbt.yml). This flow is done after successfully completing the ingestion flow. The transformations included binning the wind direction as a new cardinal direction attribute and binning the cloud cover for all three subareas of the sky.
 - **Deployment**: All components run in Docker containers on a GCP VM instance. The images are set to always restart (`restart: always`).
 
-![Pipeline Diagram](path/to/pipeline_image.png)
+![Pipeline Diagram](image/pipeline_diagram.svg)
 
 ---
 
