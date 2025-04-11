@@ -49,11 +49,11 @@ The data pipeline architecture includes:
    git clone https://github.com/stefbp066/zoomcamp_capstone.git
    cd zoomcamp_capstone
 
-2. **Set up GCP credentials**
+2. **Set up GCP credentials and resources**
 
-   - Go to your GCP Console.
-   - Create or select a service account with the necessary permissions (e.g., BigQuery Admin, Storage Admin, Compute Admin).
-   - Generate a key and download the JSON file.
+   - Resource creation (BigQuery dataset and GCS Bucket) can be done with Terraform.
+   - Create or select service accounts with the necessary permissions on the GCP console (e.g., BigQuery Admin, Storage Admin, Compute Admin). The only necessary service account for the deployed pipeline itself is for Kestra, as it takes care of the dbt transforms as long as the Kestra flow is sync-ed to the right subdirectory with the `dbt_project.yml` and other files in your repo.
+   - Generate a key and download the JSON files. 
    - Save it to your local machine and mount it in Docker using:
 
      ```yaml
@@ -61,39 +61,16 @@ The data pipeline architecture includes:
        - ~/.google/credentials/google_credentials.json:/.google/credentials/google_credentials.json
      ```
 
-3. **Configure your `.dbt/profiles.yml`**
+3. **Start the pipeline locally (for testing)**
 
-   - Create a `.dbt` directory in your home folder if it doesn't exist:
-
-     ```bash
-     mkdir ~/.dbt
-     ```
-
-   - Inside, create a `profiles.yml` file with the following structure (adjust values as needed):
-
-     ```yaml
-     dbt_capstone:
-       outputs:
-         dev:
-           type: bigquery
-           method: service-account
-           project: your-gcp-project-id
-           dataset: your_dataset_name
-           keyfile: /.google/credentials/google_credentials.json
-           threads: 4
-           timeout_seconds: 300
-           location: your-region
-       target: dev
-     ```
-
-4. **Start the pipeline locally (for testing)**
-
-   From the project root, run:
+   From the project root, set a `docker-compose` file and then run the following command in a (sub)directory with the `docker-compose` file:
 
    ```bash
-   docker-compose up
+   docker-compose up -d
 
-5. **Deploy to GCP**
+   (`docker compose up -d` might work instead for your use case)
+
+4. **Deploy to GCP**
 
    - **Create a GCP VM instance**:
      - Choose a region and zone close to your data.
