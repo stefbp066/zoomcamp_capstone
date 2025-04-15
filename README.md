@@ -3,6 +3,13 @@
 This repository contains the end-to-end implementation of a data pipeline built as part of the Data Engineering Zoomcamp Capstone project. It covers data ingestion, transformation, orchestration, and visualization.
 
 ---
+## Issues Tackled
+
+The background for this repo stemmed from the use of the Open-Meteo API for a [previous predictive analytics project](https://github.com/stefbp066/MDA_project/). In that project, my team trained a machine learning model on data available up to a fixed cutoff date and used more recent API data solely for inference. While functional, the project lacked a robust data pipeline and had minimal integration with cloud infrastructure — cloud resources were used only for model storage.
+
+With the skills gained from the Data Engineering Zoomcamp, this project represents a step toward building a more complete and scalable machine learning pipeline. The goal is to streamline the entire workflow — from automated data ingestion and transformation to retraining and monitoring ML models — using cloud-native tools and infrastructure. While this project focuses primarily on the data pipeline, it lays the groundwork for future improvements in model lifecycle management and MLOps.
+
+---
 
 ## 📊 Dashboard
 
